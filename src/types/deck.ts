@@ -6,6 +6,13 @@ export type Card = {
   zone: DeckZone;
   apiId?: number;
   imageUrl?: string;
+  fullImageUrl?: string;
+  type?: string;
+  desc?: string;
+  atk?: number;
+  def?: number;
+  level?: number;
+  attribute?: string;
 };
 
 export type Deck = {

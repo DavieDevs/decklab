@@ -1,5 +1,7 @@
 import { useState } from "react";
+import type { FC } from "react";
 import type { Card, DeckZone, YGOCardApi } from "../types/deck";
+import { CardDetailModal } from "../components/CardDetailModal";
 
 const initialDeckName = "New Deck";
 
@@ -18,6 +20,7 @@ export default function BuildDeckPage() {
   const [searchResults, setSearchResults] = useState<YGOCardApi[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [selectedCard, setSelectedCard] = useState<Card | null>(null);
 
   const searchCards = async () => {
     const query = cardNameInput.trim();
@@ -77,12 +80,29 @@ export default function BuildDeckPage() {
     addCardToSelectedZone(card.name, {
       apiId: card.id,
       imageUrl: card.card_images?.[0]?.image_url_small,
+      fullImageUrl: card.card_images?.[0]?.image_url,
+      type: card.type,
+      desc: card.desc,
+      atk: card.atk,
+      def: card.def,
+      level: card.level,
+      attribute: card.attribute,
     });
   };
 
   const addCardToSelectedZone = (
     name: string,
-    options?: { apiId?: number; imageUrl?: string }
+    options?: {
+      apiId?: number;
+      imageUrl?: string;
+      fullImageUrl?: string;
+      type?: string;
+      desc?: string;
+      atk?: number;
+      def?: number;
+      level?: number;
+      attribute?: string;
+    }
   ) => {
     if (isZoneFull(selectedZone)) {
       const limit = getZoneLimit(selectedZone);
@@ -102,6 +122,13 @@ export default function BuildDeckPage() {
       zone: selectedZone,
       apiId: options?.apiId,
       imageUrl: options?.imageUrl,
+      fullImageUrl: options?.fullImageUrl,
+      type: options?.type,
+      desc: options?.desc,
+      atk: options?.atk,
+      def: options?.def,
+      level: options?.level,
+      attribute: options?.attribute,
     };
 
     if (selectedZone === "main") setMain((prev) => [...prev, newCard]);
@@ -142,221 +169,220 @@ export default function BuildDeckPage() {
   const isCardAllowedInZone = (card: YGOCardApi, zone: DeckZone) => {
     const isExtra = isExtraDeckType(card.type);
 
-    if (zone === "extra") {
-      return isExtra;
-    }
-
-    if (zone === "main") {
-      return !isExtra;
-    }
-
-    if (zone === "side") {
-      return true;
-    }
-
+    if (zone === "extra") return isExtra;
+    if (zone === "main") return !isExtra;
+    if (zone === "side") return true;
     return true;
   };
 
   return (
-    <main className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-6 text-neutral-100 md:flex-row">
-      {/* Left column: deck info + “card search”/add */}
-      <section className="w-full md:w-1/3">
-        <h1 className="mb-4 text-2xl font-semibold">Build a Deck</h1>
+    <>
+      <main className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-6 text-neutral-100 md:flex-row">
+        {/* Left column: deck info + card search */}
+        <section className="w-full md:w-1/3">
+          <h1 className="mb-4 text-2xl font-semibold">Build a Deck</h1>
 
-        <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-neutral-400">
-          Deck Name
-        </label>
-        <input
-          value={deckName}
-          onChange={(e) => setDeckName(e.target.value)}
-          className="mb-6 w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm outline-none focus:border-indigo-500"
-        />
+          <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-neutral-400">
+            Deck Name
+          </label>
+          <input
+            value={deckName}
+            onChange={(e) => setDeckName(e.target.value)}
+            className="mb-6 w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm outline-none focus:border-indigo-500"
+          />
 
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            searchCards();
-          }}
-          className="space-y-3"
-        >
-          <div>
-            <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-neutral-400">
-              Card Name
-            </label>
-            <input
-              value={cardNameInput}
-              onChange={(e) => setCardNameInput(e.target.value)}
-              placeholder="Blue-Eyes White Dragon"
-              className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm outline-none focus:border-indigo-500"
-            />
-          </div>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              searchCards();
+            }}
+            className="space-y-3"
+          >
+            <div>
+              <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-neutral-400">
+                Card Name
+              </label>
+              <input
+                value={cardNameInput}
+                onChange={(e) => setCardNameInput(e.target.value)}
+                placeholder="Blue-Eyes White Dragon"
+                className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm outline-none focus:border-indigo-500"
+              />
+            </div>
 
-          <div>
-            <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-neutral-400">
-              Zone
-            </label>
-            <select
-              value={selectedZone}
-              onChange={(e) => {
-                setSelectedZone(e.target.value as DeckZone);
-                setLimitError(null);
-                setSearchError(null);
-              }}
-              className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm outline-none focus:border-indigo-500"
-            >
-              <option value="main">Main Deck</option>
-              <option value="extra">Extra Deck</option>
-              <option value="side">Side Deck</option>
-            </select>
-          </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-neutral-400">
+                Zone
+              </label>
+              <select
+                value={selectedZone}
+                onChange={(e) => {
+                  setSelectedZone(e.target.value as DeckZone);
+                  setLimitError(null);
+                  setSearchError(null);
+                }}
+                className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm outline-none focus:border-indigo-500"
+              >
+                <option value="main">Main Deck</option>
+                <option value="extra">Extra Deck</option>
+                <option value="side">Side Deck</option>
+              </select>
+            </div>
 
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={searchCards}
-              className="flex-1 rounded-md border border-neutral-700 px-3 py-2 text-sm font-medium text-neutral-100 transition-colors hover:border-neutral-400 hover:text-white"
-              disabled={isSearching || !cardNameInput.trim()}
-            >
-              {isSearching ? "Searching..." : "Search Cards"}
-            </button>
-          </div>
-        </form>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={searchCards}
+                className="flex-1 rounded-md border border-neutral-700 px-3 py-2 text-sm font-medium text-neutral-100 transition-colors hover:border-neutral-400 hover:text-white"
+                disabled={isSearching || !cardNameInput.trim()}
+              >
+                {isSearching ? "Searching..." : "Search Cards"}
+              </button>
+            </div>
+          </form>
 
-        {searchError && (
-          <p className="mt-3 text-xs text-red-400">{searchError}</p>
-        )}
+          {searchError && (
+            <p className="mt-3 text-xs text-red-400">{searchError}</p>
+          )}
 
-        {limitError && (
-          <p className="mt-2 text-xs text-red-400">{limitError}</p>
-        )}
+          {limitError && (
+            <p className="mt-2 text-xs text-red-400">{limitError}</p>
+          )}
 
-        {searchResults.length > 0 && (
-          <div className="mt-4 rounded-lg border border-neutral-800 bg-neutral-950/70 p-2">
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-400">
-              Search Results
-            </h2>
-            <ul className="grid grid-cols-2 gap-2 max-h-80 overflow-y-auto pr-1 md:grid-cols-3">
-              {searchResults.map((card) => {
-                const imageUrl =
-                  card.card_images?.[0]?.image_url_small ||
-                  card.card_images?.[0]?.image_url;
+          {searchResults.length > 0 && (
+            <div className="mt-4 rounded-lg border border-neutral-800 bg-neutral-950/70 p-2">
+              <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-400">
+                Search Results
+              </h2>
+              <ul className="grid grid-cols-2 gap-2 max-h-80 overflow-y-auto pr-1 md:grid-cols-3">
+                {searchResults.map((card) => {
+                  const imageUrl =
+                    card.card_images?.[0]?.image_url_small ||
+                    card.card_images?.[0]?.image_url;
 
-                return (
-                  <li
-                    key={card.id}
-                    className="group relative cursor-pointer rounded-md overflow-hidden bg-neutral-900"
-                    onClick={() => addCardFromApi(card)}
-                  >
-                    {imageUrl && (
-                      <img
-                        src={imageUrl}
-                        alt={card.name}
-                        className="h-40 w-full object-cover rounded-md shadow-md"
-                      />
-                    )}
+                  return (
+                    <li
+                      key={card.id}
+                      className="group relative cursor-pointer rounded-md overflow-hidden bg-neutral-900"
+                      onClick={() => addCardFromApi(card)}
+                    >
+                      {imageUrl && (
+                        <img
+                          src={imageUrl}
+                          alt={card.name}
+                          className="h-40 w-full object-cover rounded-md shadow-md"
+                        />
+                      )}
 
-                    {/* Bottom name strip */}
-                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-2 py-1">
-                      <p className="truncate text-[10px] text-neutral-100">
-                        {card.name}
-                      </p>
-                      <p className="truncate text-[9px] text-neutral-400">
-                        {card.type}
-                      </p>
-                    </div>
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-2 py-1">
+                        <p className="truncate text-[10px] text-neutral-100">
+                          {card.name}
+                        </p>
+                        <p className="truncate text-[9px] text-neutral-400">
+                          {card.type}
+                        </p>
+                      </div>
 
-                    {/* Hover highlight */}
-                    <div className="absolute inset-0 hidden bg-white/10 group-hover:block" />
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        )}
-      </section>
+                      <div className="absolute inset-0 hidden bg-white/10 group-hover:block" />
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+        </section>
 
-      {/* Right column: card counts + deck zones */}
-      <section className="w-full space-y-4 md:w-2/3">
-        {/* Card count row */}
-        <div className="rounded-lg border border-neutral-800 bg-neutral-950/60 px-3 py-2 text-xs text-neutral-300">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">
-              Card Counts
-            </span>
-
-            <span
-              className={
-                main.length > MAX_MAIN
-                  ? "text-red-400"
-                  : main.length === MAX_MAIN
-                  ? "text-amber-300"
-                  : "text-neutral-200"
-              }
-            >
-              Main:{" "}
-              <span className="font-semibold">
-                {main.length} / {MAX_MAIN}
+        {/* Right column: card counts + deck zones */}
+        <section className="w-full space-y-4 md:w-2/3">
+          <div className="rounded-lg border border-neutral-800 bg-neutral-950/60 px-3 py-2 text-xs text-neutral-300">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">
+                Card Counts
               </span>
-            </span>
 
-            <span
-              className={
-                extra.length > MAX_EXTRA
-                  ? "text-red-400"
-                  : extra.length === MAX_EXTRA
-                  ? "text-amber-300"
-                  : "text-neutral-200"
-              }
-            >
-              Extra:{" "}
-              <span className="font-semibold">
-                {extra.length} / {MAX_EXTRA}
+              <span
+                className={
+                  main.length > MAX_MAIN
+                    ? "text-red-400"
+                    : main.length === MAX_MAIN
+                    ? "text-amber-300"
+                    : "text-neutral-200"
+                }
+              >
+                Main:{" "}
+                <span className="font-semibold">
+                  {main.length} / {MAX_MAIN}
+                </span>
               </span>
-            </span>
 
-            <span
-              className={
-                side.length > MAX_SIDE
-                  ? "text-red-400"
-                  : side.length === MAX_SIDE
-                  ? "text-amber-300"
-                  : "text-neutral-200"
-              }
-            >
-              Side:{" "}
-              <span className="font-semibold">
-                {side.length} / {MAX_SIDE}
+              <span
+                className={
+                  extra.length > MAX_EXTRA
+                    ? "text-red-400"
+                    : extra.length === MAX_EXTRA
+                    ? "text-amber-300"
+                    : "text-neutral-200"
+                }
+              >
+                Extra:{" "}
+                <span className="font-semibold">
+                  {extra.length} / {MAX_EXTRA}
+                </span>
               </span>
-            </span>
+
+              <span
+                className={
+                  side.length > MAX_SIDE
+                    ? "text-red-400"
+                    : side.length === MAX_SIDE
+                    ? "text-amber-300"
+                    : "text-neutral-200"
+                }
+              >
+                Side:{" "}
+                <span className="font-semibold">
+                  {side.length} / {MAX_SIDE}
+                </span>
+              </span>
+            </div>
           </div>
-        </div>
 
-        {/* Deck zones */}
-        <DeckZoneColumn
-          title={`Main Deck (${main.length})`}
-          cards={main}
-          zone="main"
-          onRemove={handleRemoveCard}
-          minHeight="min-h-64"
-        />
+          <DeckZoneColumn
+            title={`Main Deck (${main.length})`}
+            cards={main}
+            zone="main"
+            onRemove={handleRemoveCard}
+            minHeight="min-h-64"
+            onCardClick={setSelectedCard}
+          />
 
-        <DeckZoneColumn
-          title={`Extra Deck (${extra.length})`}
-          cards={extra}
-          zone="extra"
-          onRemove={handleRemoveCard}
-          minHeight="min-h-48"
-        />
+          <DeckZoneColumn
+            title={`Extra Deck (${extra.length})`}
+            cards={extra}
+            zone="extra"
+            onRemove={handleRemoveCard}
+            minHeight="min-h-48"
+            onCardClick={setSelectedCard}
+          />
 
-        <DeckZoneColumn
-          title={`Side Deck (${side.length})`}
-          cards={side}
-          zone="side"
-          onRemove={handleRemoveCard}
-          minHeight="min-h-32"
+          <DeckZoneColumn
+            title={`Side Deck (${side.length})`}
+            cards={side}
+            zone="side"
+            onRemove={handleRemoveCard}
+            minHeight="min-h-32"
+            onCardClick={setSelectedCard}
+          />
+        </section>
+      </main>
+
+      {selectedCard && (
+        <CardDetailModal
+          card={selectedCard}
+          onClose={() => setSelectedCard(null)}
         />
-      </section>
-    </main>
+      )}
+    </>
   );
 }
 
@@ -367,15 +393,17 @@ type DeckZoneColumnProps = {
   onRemove: (zone: DeckZone, id: string) => void;
   className?: string;
   minHeight?: string;
+  onCardClick?: (card: Card) => void;
 };
 
-const DeckZoneColumn: React.FC<DeckZoneColumnProps> = ({
+const DeckZoneColumn: FC<DeckZoneColumnProps> = ({
   title,
   cards,
   zone,
   onRemove,
   className = "",
   minHeight = "min-h-40",
+  onCardClick,
 }) => {
   return (
     <div
@@ -387,7 +415,11 @@ const DeckZoneColumn: React.FC<DeckZoneColumnProps> = ({
       ) : (
         <ul className="grid grid-cols-3 gap-2 md:grid-cols-4 lg:grid-cols-5">
           {cards.map((card) => (
-            <li key={card.id} className="group relative cursor-pointer">
+            <li
+              key={card.id}
+              className="group relative cursor-pointer"
+              onClick={() => onCardClick?.(card)}
+            >
               {card.imageUrl ? (
                 <img
                   src={card.imageUrl}
@@ -400,17 +432,18 @@ const DeckZoneColumn: React.FC<DeckZoneColumnProps> = ({
                 </div>
               )}
 
-              {/* Name strip at bottom */}
               <div className="pointer-events-none absolute inset-x-0 bottom-0 rounded-b-md bg-gradient-to-t from-black/80 to-transparent px-1 pb-1 pt-3">
                 <span className="block truncate text-[10px] text-neutral-100">
                   {card.name}
                 </span>
               </div>
 
-              {/* Remove button on hover */}
               <button
                 type="button"
-                onClick={() => onRemove(zone, card.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemove(zone, card.id);
+                }}
                 className="absolute right-1 top-1 hidden rounded bg-red-600 px-1.5 py-0.5 text-[10px] text-white shadow-md group-hover:block"
               >
                 remove
