@@ -59,6 +59,21 @@ export default function BuildDeckPage() {
   };
 
   const addCardFromApi = (card: YGOCardApi) => {
+    if (!isCardAllowedInZone(card, selectedZone)) {
+      if (selectedZone === "main") {
+        setLimitError(
+          "Extra Deck monsters (Fusion, Synchro, Xyz, Link) must be placed in the Extra Deck."
+        );
+      } else if (selectedZone === "extra") {
+        setLimitError(
+          "Only Fusion, Synchro, Xyz, and Link monsters can be placed in the Extra Deck."
+        );
+      } else {
+        setLimitError("This card type can't be added to the selected zone.");
+      }
+      return;
+    }
+
     addCardToSelectedZone(card.name, {
       apiId: card.id,
       imageUrl: card.card_images?.[0]?.image_url_small,
@@ -103,6 +118,11 @@ export default function BuildDeckPage() {
     setLimitError(null);
   };
 
+  const isExtraDeckType = (cardType: string) => {
+    const extraKeywords = ["Fusion", "Synchro", "XYZ", "Xyz", "Link"];
+    return extraKeywords.some((kw) => cardType.includes(kw));
+  };
+
   const getZoneLimit = (zone: DeckZone) => {
     if (zone === "main") return MAX_MAIN;
     if (zone === "extra") return MAX_EXTRA;
@@ -117,6 +137,24 @@ export default function BuildDeckPage() {
 
   const isZoneFull = (zone: DeckZone) => {
     return getZoneCount(zone) >= getZoneLimit(zone);
+  };
+
+  const isCardAllowedInZone = (card: YGOCardApi, zone: DeckZone) => {
+    const isExtra = isExtraDeckType(card.type);
+
+    if (zone === "extra") {
+      return isExtra;
+    }
+
+    if (zone === "main") {
+      return !isExtra;
+    }
+
+    if (zone === "side") {
+      return true;
+    }
+
+    return true;
   };
 
   return (
@@ -159,7 +197,11 @@ export default function BuildDeckPage() {
             </label>
             <select
               value={selectedZone}
-              onChange={(e) => setSelectedZone(e.target.value as DeckZone)}
+              onChange={(e) => {
+                setSelectedZone(e.target.value as DeckZone);
+                setLimitError(null);
+                setSearchError(null);
+              }}
               className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm outline-none focus:border-indigo-500"
             >
               <option value="main">Main Deck</option>
@@ -193,7 +235,7 @@ export default function BuildDeckPage() {
             <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-400">
               Search Results
             </h2>
-            <ul className="max-h-64 space-y-1 overflow-y-auto text-xs">
+            <ul className="grid grid-cols-2 gap-2 max-h-80 overflow-y-auto pr-1 md:grid-cols-3">
               {searchResults.map((card) => {
                 const imageUrl =
                   card.card_images?.[0]?.image_url_small ||
@@ -202,26 +244,29 @@ export default function BuildDeckPage() {
                 return (
                   <li
                     key={card.id}
-                    className="flex cursor-pointer items-center justify-between gap-2 rounded-md px-2 py-1 hover:bg-neutral-900"
+                    className="group relative cursor-pointer rounded-md overflow-hidden bg-neutral-900"
                     onClick={() => addCardFromApi(card)}
                   >
-                    <div className="flex items-center gap-2">
-                      {imageUrl && (
-                        <img
-                          src={imageUrl}
-                          alt={card.name}
-                          className="h-12 w-9 rounded-sm object-cover"
-                        />
-                      )}
-                      <div className="flex flex-col">
-                        <span className="max-w-[9rem] truncate md:max-w-[12rem]">
-                          {card.name}
-                        </span>
-                        <span className="text-[10px] text-neutral-500">
-                          {card.type}
-                        </span>
-                      </div>
+                    {imageUrl && (
+                      <img
+                        src={imageUrl}
+                        alt={card.name}
+                        className="h-40 w-full object-cover rounded-md shadow-md"
+                      />
+                    )}
+
+                    {/* Bottom name strip */}
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-2 py-1">
+                      <p className="truncate text-[10px] text-neutral-100">
+                        {card.name}
+                      </p>
+                      <p className="truncate text-[9px] text-neutral-400">
+                        {card.type}
+                      </p>
                     </div>
+
+                    {/* Hover highlight */}
+                    <div className="absolute inset-0 hidden bg-white/10 group-hover:block" />
                   </li>
                 );
               })}
@@ -340,29 +385,33 @@ const DeckZoneColumn: React.FC<DeckZoneColumnProps> = ({
       {cards.length === 0 ? (
         <p className="text-xs text-neutral-500">No cards yet.</p>
       ) : (
-        <ul className="space-y-1">
+        <ul className="grid grid-cols-3 gap-2 md:grid-cols-4 lg:grid-cols-5">
           {cards.map((card) => (
-            <li
-              key={card.id}
-              className="flex items-center justify-between gap-2 rounded-md bg-neutral-900 px-2 py-1 text-xs"
-            >
-              <div className="flex items-center gap-2">
-                {card.imageUrl && (
-                  <img
-                    src={card.imageUrl}
-                    alt={card.name}
-                    className="h-12 w-9 rounded-sm object-cover"
-                  />
-                )}
-                <span className="max-w-[8rem] truncate md:max-w-[10rem]">
+            <li key={card.id} className="group relative cursor-pointer">
+              {card.imageUrl ? (
+                <img
+                  src={card.imageUrl}
+                  alt={card.name}
+                  className="w-full rounded-md object-cover shadow-md"
+                />
+              ) : (
+                <div className="flex h-24 items-center justify-center rounded-md bg-neutral-900 px-2 text-[11px] text-center text-neutral-200">
+                  {card.name}
+                </div>
+              )}
+
+              {/* Name strip at bottom */}
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 rounded-b-md bg-gradient-to-t from-black/80 to-transparent px-1 pb-1 pt-3">
+                <span className="block truncate text-[10px] text-neutral-100">
                   {card.name}
                 </span>
               </div>
 
+              {/* Remove button on hover */}
               <button
                 type="button"
                 onClick={() => onRemove(zone, card.id)}
-                className="text-[11px] text-red-400 hover:text-red-300"
+                className="absolute right-1 top-1 hidden rounded bg-red-600 px-1.5 py-0.5 text-[10px] text-white shadow-md group-hover:block"
               >
                 remove
               </button>
