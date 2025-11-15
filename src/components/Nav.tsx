@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import Logo from "../assets/decklab_logo.png";
 
 type NavItem = {
@@ -9,7 +10,6 @@ type NavItem = {
 const centerNavItems: NavItem[] = [
   { label: "Build Deck", href: "/build" },
   { label: "My Decks", href: "/decks" },
-  { label: "Card Search", href: "/cards" },
 ];
 
 export const Nav = () => {
@@ -25,25 +25,25 @@ export const Nav = () => {
         className="mx-auto flex w-full items-center justify-between px-4"
         aria-label="Main navigation"
       >
-        <a
-          href="/"
+        <Link
+          to="/"
           className="flex items-center gap-2"
           aria-label="DeckLab home"
         >
           <img src={Logo} alt="DeckLab logo" className="w-32" />
-        </a>
+        </Link>
 
         {/* Center: Nav links (desktop) */}
         <div className="hidden flex-1 items-center justify-center md:flex">
           <ul className="flex gap-6 text-md font-medium text-neutral-200">
             {centerNavItems.map((item) => (
               <li key={item.href}>
-                <a
-                  href={item.href}
+                <Link
+                  to={item.href}
                   className="transition-colors hover:text-white hover:underline hover:underline-offset-4"
                 >
                   {item.label}
-                </a>
+                </Link>
               </li>
             ))}
           </ul>
