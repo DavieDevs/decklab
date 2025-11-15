@@ -1,6 +1,5 @@
 import { useState } from "react";
-import type { FormEvent } from "react";
-import type { Card, DeckZone } from "../types/deck";
+import type { Card, DeckZone, YGOCardApi } from "../types/deck";
 
 const initialDeckName = "New Deck";
 
@@ -16,12 +15,60 @@ export default function BuildDeckPage() {
   const [extra, setExtra] = useState<Card[]>([]);
   const [side, setSide] = useState<Card[]>([]);
   const [limitError, setLimitError] = useState<string | null>(null);
+  const [searchResults, setSearchResults] = useState<YGOCardApi[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
 
-  const handleAddCard = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const trimmed = cardNameInput.trim();
-    if (!trimmed) return;
+  const searchCards = async () => {
+    const query = cardNameInput.trim();
+    if (!query) {
+      setSearchResults([]);
+      setSearchError(null);
+      return;
+    }
 
+    try {
+      setIsSearching(true);
+      setSearchError(null);
+
+      const res = await fetch(
+        `https://db.ygoprodeck.com/api/v7/cardinfo.php?fname=${encodeURIComponent(
+          query
+        )}&num=20&offset=0`
+      );
+
+      if (!res.ok) {
+        throw new Error("Failed to fetch cards");
+      }
+
+      const data = await res.json();
+
+      if (!data.data || !Array.isArray(data.data)) {
+        setSearchResults([]);
+        setSearchError("No cards found.");
+        return;
+      }
+
+      setSearchResults(data.data as YGOCardApi[]);
+    } catch (err) {
+      console.error(err);
+      setSearchError("Error fetching cards. Please try again.");
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const addCardFromApi = (card: YGOCardApi) => {
+    addCardToSelectedZone(card.name, {
+      apiId: card.id,
+      imageUrl: card.card_images?.[0]?.image_url_small,
+    });
+  };
+
+  const addCardToSelectedZone = (
+    name: string,
+    options?: { apiId?: number; imageUrl?: string }
+  ) => {
     if (isZoneFull(selectedZone)) {
       const limit = getZoneLimit(selectedZone);
       setLimitError(
@@ -36,15 +83,16 @@ export default function BuildDeckPage() {
 
     const newCard: Card = {
       id: crypto.randomUUID(),
-      name: trimmed,
+      name,
       zone: selectedZone,
+      apiId: options?.apiId,
+      imageUrl: options?.imageUrl,
     };
 
     if (selectedZone === "main") setMain((prev) => [...prev, newCard]);
     if (selectedZone === "extra") setExtra((prev) => [...prev, newCard]);
     if (selectedZone === "side") setSide((prev) => [...prev, newCard]);
 
-    setCardNameInput("");
     setLimitError(null);
   };
 
@@ -86,7 +134,13 @@ export default function BuildDeckPage() {
           className="mb-6 w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm outline-none focus:border-indigo-500"
         />
 
-        <form onSubmit={handleAddCard} className="space-y-3">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            searchCards();
+          }}
+          className="space-y-3"
+        >
           <div>
             <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-neutral-400">
               Card Name
@@ -114,18 +168,66 @@ export default function BuildDeckPage() {
             </select>
           </div>
 
-          <button
-            type="submit"
-            className="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-neutral-700"
-            disabled={!cardNameInput.trim() || isZoneFull(selectedZone)}
-          >
-            {isZoneFull(selectedZone) ? "Deck Full" : "Add Card"}
-          </button>
-
-          {limitError && (
-            <p className="mt-2 text-xs text-red-400">{limitError}</p>
-          )}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={searchCards}
+              className="flex-1 rounded-md border border-neutral-700 px-3 py-2 text-sm font-medium text-neutral-100 transition-colors hover:border-neutral-400 hover:text-white"
+              disabled={isSearching || !cardNameInput.trim()}
+            >
+              {isSearching ? "Searching..." : "Search Cards"}
+            </button>
+          </div>
         </form>
+
+        {searchError && (
+          <p className="mt-3 text-xs text-red-400">{searchError}</p>
+        )}
+
+        {limitError && (
+          <p className="mt-2 text-xs text-red-400">{limitError}</p>
+        )}
+
+        {searchResults.length > 0 && (
+          <div className="mt-4 rounded-lg border border-neutral-800 bg-neutral-950/70 p-2">
+            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-400">
+              Search Results
+            </h2>
+            <ul className="max-h-64 space-y-1 overflow-y-auto text-xs">
+              {searchResults.map((card) => {
+                const imageUrl =
+                  card.card_images?.[0]?.image_url_small ||
+                  card.card_images?.[0]?.image_url;
+
+                return (
+                  <li
+                    key={card.id}
+                    className="flex cursor-pointer items-center justify-between gap-2 rounded-md px-2 py-1 hover:bg-neutral-900"
+                    onClick={() => addCardFromApi(card)}
+                  >
+                    <div className="flex items-center gap-2">
+                      {imageUrl && (
+                        <img
+                          src={imageUrl}
+                          alt={card.name}
+                          className="h-12 w-9 rounded-sm object-cover"
+                        />
+                      )}
+                      <div className="flex flex-col">
+                        <span className="max-w-[9rem] truncate md:max-w-[12rem]">
+                          {card.name}
+                        </span>
+                        <span className="text-[10px] text-neutral-500">
+                          {card.type}
+                        </span>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
       </section>
 
       {/* Right column: card counts + deck zones */}
@@ -213,13 +315,10 @@ export default function BuildDeckPage() {
   );
 }
 
-type DeckZoneVariant = "main" | "extra" | "side";
-
 type DeckZoneColumnProps = {
   title: string;
   cards: Card[];
   zone: DeckZone;
-  variant?: DeckZoneVariant;
   onRemove: (zone: DeckZone, id: string) => void;
   className?: string;
   minHeight?: string;
@@ -245,9 +344,21 @@ const DeckZoneColumn: React.FC<DeckZoneColumnProps> = ({
           {cards.map((card) => (
             <li
               key={card.id}
-              className="flex items-center justify-between rounded-md bg-neutral-900 px-2 py-1 text-xs"
+              className="flex items-center justify-between gap-2 rounded-md bg-neutral-900 px-2 py-1 text-xs"
             >
-              <span>{card.name}</span>
+              <div className="flex items-center gap-2">
+                {card.imageUrl && (
+                  <img
+                    src={card.imageUrl}
+                    alt={card.name}
+                    className="h-12 w-9 rounded-sm object-cover"
+                  />
+                )}
+                <span className="max-w-[8rem] truncate md:max-w-[10rem]">
+                  {card.name}
+                </span>
+              </div>
+
               <button
                 type="button"
                 onClick={() => onRemove(zone, card.id)}
