@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { FormEvent } from "react";
 import type { Card, DeckZone } from "../types/deck";
 
 const initialDeckName = "New Deck";
@@ -14,11 +15,24 @@ export default function BuildDeckPage() {
   const [main, setMain] = useState<Card[]>([]);
   const [extra, setExtra] = useState<Card[]>([]);
   const [side, setSide] = useState<Card[]>([]);
+  const [limitError, setLimitError] = useState<string | null>(null);
 
-  const handleAddCard = (e: React.FormEvent) => {
+  const handleAddCard = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const trimmed = cardNameInput.trim();
     if (!trimmed) return;
+
+    if (isZoneFull(selectedZone)) {
+      const limit = getZoneLimit(selectedZone);
+      setLimitError(
+        selectedZone === "main"
+          ? `Main Deck is full (${limit}/${limit}). Remove a card before adding more.`
+          : selectedZone === "extra"
+          ? `Extra Deck is full (${limit}/${limit}). Remove a card before adding more.`
+          : `Side Deck is full (${limit}/${limit}). Remove a card before adding more.`
+      );
+      return;
+    }
 
     const newCard: Card = {
       id: crypto.randomUUID(),
@@ -31,12 +45,30 @@ export default function BuildDeckPage() {
     if (selectedZone === "side") setSide((prev) => [...prev, newCard]);
 
     setCardNameInput("");
+    setLimitError(null);
   };
 
   const handleRemoveCard = (zone: DeckZone, id: string) => {
     if (zone === "main") setMain((prev) => prev.filter((c) => c.id !== id));
     if (zone === "extra") setExtra((prev) => prev.filter((c) => c.id !== id));
     if (zone === "side") setSide((prev) => prev.filter((c) => c.id !== id));
+    setLimitError(null);
+  };
+
+  const getZoneLimit = (zone: DeckZone) => {
+    if (zone === "main") return MAX_MAIN;
+    if (zone === "extra") return MAX_EXTRA;
+    return MAX_SIDE;
+  };
+
+  const getZoneCount = (zone: DeckZone) => {
+    if (zone === "main") return main.length;
+    if (zone === "extra") return extra.length;
+    return side.length;
+  };
+
+  const isZoneFull = (zone: DeckZone) => {
+    return getZoneCount(zone) >= getZoneLimit(zone);
   };
 
   return (
@@ -85,10 +117,14 @@ export default function BuildDeckPage() {
           <button
             type="submit"
             className="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-neutral-700"
-            disabled={!cardNameInput.trim()}
+            disabled={!cardNameInput.trim() || isZoneFull(selectedZone)}
           >
-            Add Card
+            {isZoneFull(selectedZone) ? "Deck Full" : "Add Card"}
           </button>
+
+          {limitError && (
+            <p className="mt-2 text-xs text-red-400">{limitError}</p>
+          )}
         </form>
       </section>
 
