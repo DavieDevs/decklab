@@ -1,7 +1,7 @@
-// src/pages/MyDecksPage.tsx
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import type { Card } from "../types/deck";
+import { useNavigate } from "react-router-dom";
 
 type DeckRow = {
   id: string;
@@ -18,6 +18,9 @@ export default function MyDecksPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const loadDecks = async () => {
@@ -55,6 +58,69 @@ export default function MyDecksPage() {
 
     loadDecks();
   }, []);
+
+  const handleDeleteDeck = async (id: string) => {
+    const confirm = window.confirm(
+      "Are you sure you want to delete this deck?"
+    );
+    if (!confirm) return;
+
+    setDeletingId(id);
+    try {
+      const { error: deleteError } = await supabase
+        .from("decks")
+        .delete()
+        .eq("id", id);
+
+      if (deleteError) {
+        console.error(deleteError);
+        setError("Failed to delete deck. Please try again.");
+        return;
+      }
+
+      setDecks((prev) => prev.filter((deck) => deck.id !== id));
+    } catch (err) {
+      console.error(err);
+      setError("Something went wrong while deleting the deck.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleDuplicateDeck = async (deck: DeckRow) => {
+    setDuplicatingId(deck.id);
+    setError(null);
+
+    try {
+      const newName = `Copy of ${deck.name}`;
+
+      const { data, error: insertError } = await supabase
+        .from("decks")
+        .insert({
+          user_id: (await supabase.auth.getUser()).data.user?.id,
+          name: newName,
+          format: deck.format ?? "tcg",
+          main: deck.main ?? [],
+          extra: deck.extra ?? [],
+          side: deck.side ?? [],
+        })
+        .select("*")
+        .single();
+
+      if (insertError) {
+        console.error(insertError);
+        setError("Failed to duplicate deck. Please try again.");
+        return;
+      }
+
+      setDecks((prev) => [data as DeckRow, ...prev]);
+    } catch (err) {
+      console.error(err);
+      setError("Something went wrong while duplicating the deck.");
+    } finally {
+      setDuplicatingId(null);
+    }
+  };
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-6 text-neutral-100">
@@ -149,19 +215,43 @@ export default function MyDecksPage() {
                   )}
                 </div>
 
-                <div className="mt-4 flex items-center justify-between gap-2 text-[11px] text-neutral-500">
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-[11px] text-neutral-500">
                   <span>
                     Created: {new Date(deck.created_at).toLocaleDateString()}
                   </span>
 
-                  {/* Placeholder for future: load into builder */}
-                  <button
-                    type="button"
-                    className="rounded-md border border-neutral-700 px-2 py-1 text-[11px] font-medium text-neutral-100 hover:border-indigo-400 hover:text-indigo-300"
-                    // TODO: later: onClick={() => handleLoadDeck(deck)}
-                  >
-                    View / Load (coming soon)
-                  </button>
+                  <div className="flex gap-2">
+                    {/* Load / View Deck */}
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/build/${deck.id}`)}
+                      className="rounded-md border border-neutral-700 px-2 py-1 text-[11px] font-medium text-neutral-100 hover:border-indigo-400 hover:text-indigo-300"
+                    >
+                      View / Edit
+                    </button>
+
+                    {/* Duplicate Deck */}
+                    <button
+                      type="button"
+                      onClick={() => handleDuplicateDeck(deck)}
+                      disabled={duplicatingId === deck.id}
+                      className="rounded-md border border-neutral-700 px-2 py-1 text-[11px] font-medium text-neutral-100 hover:border-emerald-400 hover:text-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {duplicatingId === deck.id
+                        ? "Duplicating..."
+                        : "Duplicate"}
+                    </button>
+
+                    {/* Delete Deck */}
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteDeck(deck.id)}
+                      disabled={deletingId === deck.id}
+                      className="rounded-md border border-red-700 px-2 py-1 text-[11px] font-medium text-red-200 hover:border-red-500 hover:text-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {deletingId === deck.id ? "Deleting..." : "Delete"}
+                    </button>
+                  </div>
                 </div>
               </article>
             );

@@ -13,6 +13,7 @@ function App() {
       <Routes>
         <Route path="/build" element={<BuildDeckPage />} />
         <Route path="/decks" element={<MyDeckPage />} />
+        <Route path="/build/:deckId" element={<BuildDeckPage />} />
         <Route path="/login" element={<AuthPage />} />
       </Routes>
     </div>

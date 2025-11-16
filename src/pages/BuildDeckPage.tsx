@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { FC } from "react";
 import type { Card, DeckZone, YGOCardApi } from "../types/deck";
 import { CardDetailModal } from "../components/CardDetailModal";
 import { supabase } from "../lib/supabaseClient";
+import { useParams } from "react-router-dom";
 
 const initialDeckName = "New Deck";
 
@@ -25,6 +26,9 @@ export default function BuildDeckPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [isLoadingDeck, setIsLoadingDeck] = useState(false);
+  const [deckLoadError, setDeckLoadError] = useState<string | null>(null);
+  const { deckId } = useParams<{ deckId?: string }>();
 
   const getCardBanMeta = (
     card: YGOCardApi
@@ -293,12 +297,57 @@ export default function BuildDeckPage() {
     }
   };
 
+  const loadDeckById = async (id: string) => {
+    setIsLoadingDeck(true);
+    setDeckLoadError(null);
+
+    try {
+      const { data, error } = await supabase
+        .from("decks")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (error) {
+        console.error(error);
+        setDeckLoadError("Could not load deck. It may have been deleted.");
+        setIsLoadingDeck(false);
+        return;
+      }
+
+      setDeckName(data.name ?? initialDeckName);
+      setMain((data.main ?? []) as Card[]);
+      setExtra((data.extra ?? []) as Card[]);
+      setSide((data.side ?? []) as Card[]);
+    } catch (err) {
+      console.error(err);
+      setDeckLoadError("Something went wrong while loading the deck.");
+    } finally {
+      setIsLoadingDeck(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!deckId) {
+      return;
+    }
+
+    loadDeckById(deckId);
+  }, [deckId]);
+
   return (
     <>
       <main className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-6 text-neutral-100 md:flex-row">
         {/* Left column: deck info + card search */}
         <section className="w-full md:w-1/3">
           <h1 className="mb-4 text-2xl font-semibold">Build a Deck</h1>
+          {isLoadingDeck && (
+            <p className="mb-2 text-xs text-neutral-400">Loading deck...</p>
+          )}
+
+          {deckLoadError && (
+            <p className="mb-2 text-xs text-red-400">{deckLoadError}</p>
+          )}
           <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-neutral-400">
             Deck Name
           </label>
