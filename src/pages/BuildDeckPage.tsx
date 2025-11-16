@@ -22,6 +22,38 @@ export default function BuildDeckPage() {
   const [searchError, setSearchError] = useState<string | null>(null);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
 
+  const getCardBanMeta = (
+    card: YGOCardApi
+  ): { status: Card["banStatus"]; limit: number } => {
+    const raw = card.banlist_info?.ban_tcg;
+
+    if (!raw) {
+      return { status: "unlimited", limit: 3 };
+    }
+
+    const normalized = raw.toLowerCase();
+
+    if (normalized === "banned" || normalized === "forbidden") {
+      return { status: "forbidden", limit: 0 };
+    }
+
+    if (normalized === "limited") {
+      return { status: "limited", limit: 1 };
+    }
+
+    if (normalized.startsWith("semi")) {
+      return { status: "semi-limited", limit: 2 };
+    }
+
+    return { status: "unlimited", limit: 3 };
+  };
+
+  const getCurrentCopiesByApiId = (apiId?: number): number => {
+    if (apiId == null) return 0;
+    const allCards = [...main, ...extra, ...side];
+    return allCards.filter((c) => c.apiId === apiId).length;
+  };
+
   const searchCards = async () => {
     const query = cardNameInput.trim();
     if (!query) {
@@ -76,6 +108,33 @@ export default function BuildDeckPage() {
       }
       return;
     }
+    const { status, limit } = getCardBanMeta(card);
+
+    if (limit === 0) {
+      setLimitError(
+        "This card is Forbidden in the TCG banlist and can't be added to the deck."
+      );
+      return;
+    }
+
+    const currentCopies = getCurrentCopiesByApiId(card.id);
+
+    if (currentCopies >= limit) {
+      if (limit === 1) {
+        setLimitError(
+          "This card is Limited in the TCG banlist (max 1 copy across Main, Extra, and Side)."
+        );
+      } else if (limit === 2) {
+        setLimitError(
+          "This card is Semi-Limited in the TCG banlist (max 2 copies across Main, Extra, and Side)."
+        );
+      } else {
+        setLimitError(
+          "You already have the maximum 3 copies of this card across Main, Extra, and Side."
+        );
+      }
+      return;
+    }
 
     addCardToSelectedZone(card.name, {
       apiId: card.id,
@@ -87,6 +146,8 @@ export default function BuildDeckPage() {
       def: card.def,
       level: card.level,
       attribute: card.attribute,
+      banLimit: limit,
+      banStatus: status,
     });
   };
 
@@ -102,6 +163,8 @@ export default function BuildDeckPage() {
       def?: number;
       level?: number;
       attribute?: string;
+      banLimit?: number;
+      banStatus?: Card["banStatus"];
     }
   ) => {
     if (isZoneFull(selectedZone)) {
@@ -129,6 +192,8 @@ export default function BuildDeckPage() {
       def: options?.def,
       level: options?.level,
       attribute: options?.attribute,
+      banLimit: options?.banLimit,
+      banStatus: options?.banStatus,
     };
 
     if (selectedZone === "main") setMain((prev) => [...prev, newCard]);
@@ -200,18 +265,6 @@ export default function BuildDeckPage() {
           >
             <div>
               <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-neutral-400">
-                Card Name
-              </label>
-              <input
-                value={cardNameInput}
-                onChange={(e) => setCardNameInput(e.target.value)}
-                placeholder="Blue-Eyes White Dragon"
-                className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm outline-none focus:border-indigo-500"
-              />
-            </div>
-
-            <div>
-              <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-neutral-400">
                 Zone
               </label>
               <select
@@ -227,6 +280,17 @@ export default function BuildDeckPage() {
                 <option value="extra">Extra Deck</option>
                 <option value="side">Side Deck</option>
               </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-neutral-400">
+                Card Name
+              </label>
+              <input
+                value={cardNameInput}
+                onChange={(e) => setCardNameInput(e.target.value)}
+                placeholder="Blue-Eyes White Dragon"
+                className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm outline-none focus:border-indigo-500"
+              />
             </div>
 
             <div className="flex gap-2">
@@ -249,47 +313,48 @@ export default function BuildDeckPage() {
             <p className="mt-2 text-xs text-red-400">{limitError}</p>
           )}
 
-          {searchResults.length > 0 && (
-            <div className="mt-4 rounded-lg border border-neutral-800 bg-neutral-950/70 p-2">
-              <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-400">
-                Search Results
-              </h2>
-              <ul className="grid grid-cols-2 gap-2 max-h-80 overflow-y-auto pr-1 md:grid-cols-3">
-                {searchResults.map((card) => {
-                  const imageUrl =
-                    card.card_images?.[0]?.image_url_small ||
-                    card.card_images?.[0]?.image_url;
+          <ul className="grid grid-cols-2 gap-2 max-h-100 overflow-y-auto pr-1 md:grid-cols-3 py-2">
+            {searchResults.map((card) => {
+              const imageUrl =
+                card.card_images?.[0]?.image_url_small ||
+                card.card_images?.[0]?.image_url;
 
-                  return (
-                    <li
-                      key={card.id}
-                      className="group relative cursor-pointer rounded-md overflow-hidden bg-neutral-900"
-                      onClick={() => addCardFromApi(card)}
+              const { limit } = getCardBanMeta(card);
+
+              return (
+                <li
+                  key={card.id}
+                  className="group relative cursor-pointer overflow-hidden bg-neutral-900"
+                  onClick={() => addCardFromApi(card)}
+                >
+                  {imageUrl && (
+                    <img
+                      src={imageUrl}
+                      alt={card.name}
+                      className="h-40 w-full object-cover shadow-md"
+                    />
+                  )}
+
+                  {/* Copies limit badge in bottom-right (0, 1, or 2). No badge for 3/unlimited */}
+                  {limit < 3 && (
+                    <span
+                      className={
+                        "absolute bottom-1 right-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold shadow-md " +
+                        (limit === 0
+                          ? "bg-red-700 text-red-50 border border-red-300"
+                          : "bg-black/80 text-amber-200 border border-amber-300")
+                      }
                     >
-                      {imageUrl && (
-                        <img
-                          src={imageUrl}
-                          alt={card.name}
-                          className="h-40 w-full object-cover rounded-md shadow-md"
-                        />
-                      )}
+                      {limit}
+                    </span>
+                  )}
 
-                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-2 py-1">
-                        <p className="truncate text-[10px] text-neutral-100">
-                          {card.name}
-                        </p>
-                        <p className="truncate text-[9px] text-neutral-400">
-                          {card.type}
-                        </p>
-                      </div>
-
-                      <div className="absolute inset-0 hidden bg-white/10 group-hover:block" />
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          )}
+                  {/* Hover highlight */}
+                  <div className="absolute inset-0 hidden bg-white/10 group-hover:block" />
+                </li>
+              );
+            })}
+          </ul>
         </section>
 
         {/* Right column: card counts + deck zones */}
@@ -432,11 +497,18 @@ const DeckZoneColumn: FC<DeckZoneColumnProps> = ({
                 </div>
               )}
 
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 rounded-b-md bg-gradient-to-t from-black/80 to-transparent px-1 pb-1 pt-3">
-                <span className="block truncate text-[10px] text-neutral-100">
-                  {card.name}
+              {typeof card.banLimit === "number" && card.banLimit < 3 && (
+                <span
+                  className={
+                    "absolute bottom-1 right-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold shadow-md " +
+                    (card.banLimit === 0
+                      ? "bg-red-700 text-red-50 border border-red-300"
+                      : "bg-black/80 text-amber-200 border border-amber-300")
+                  }
+                >
+                  {card.banLimit}
                 </span>
-              </div>
+              )}
 
               <button
                 type="button"

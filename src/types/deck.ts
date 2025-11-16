@@ -1,4 +1,5 @@
 export type DeckZone = "main" | "extra" | "side";
+export type BanStatus = "forbidden" | "limited" | "semi-limited" | "unlimited";
 
 export type Card = {
   id: string;
@@ -13,6 +14,8 @@ export type Card = {
   def?: number;
   level?: number;
   attribute?: string;
+  banLimit?: number;
+  banStatus?: BanStatus;
 };
 
 export type Deck = {
@@ -37,4 +40,9 @@ export type YGOCardApi = {
     image_url: string;
     image_url_small: string;
   }[];
+  banlist_info?: {
+    ban_tcg?: string;
+    ban_ocg?: string;
+    ban_goat?: string;
+  };
 };
