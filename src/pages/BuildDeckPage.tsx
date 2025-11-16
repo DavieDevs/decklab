@@ -248,7 +248,6 @@ export default function BuildDeckPage() {
     setSaveError(null);
     setSaveMessage(null);
 
-    // You can decide how strict you want this
     if (main.length === 0 && extra.length === 0 && side.length === 0) {
       setSaveError("You can't save an empty deck.");
       return;
@@ -256,7 +255,6 @@ export default function BuildDeckPage() {
 
     setIsSaving(true);
     try {
-      // 1) Get the current user
       const {
         data: { user },
         error: userError,
@@ -267,7 +265,6 @@ export default function BuildDeckPage() {
         return;
       }
 
-      // 2) Build the payload
       const payload = {
         user_id: user.id,
         name: deckName.trim() || "Untitled Deck",
@@ -277,7 +274,6 @@ export default function BuildDeckPage() {
         side,
       };
 
-      // 3) Insert into decks table
       const { error: insertError } = await supabase
         .from("decks")
         .insert(payload);
