@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Logo from "../assets/decklab_logo.png";
-import { supabase } from "../lib/supaBaseClient";
+import { supabase } from "../lib/supabaseClient";
 
 type NavItem = {
   label: string;

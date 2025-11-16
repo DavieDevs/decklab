@@ -1,5 +1,5 @@
-// src/pages/AuthPage.tsx
-import { useState, FormEvent } from "react";
+import { useState } from "react";
+import type { FormEvent } from "react";
 import { supabase } from "../lib/supabaseClient";
 
 type AuthMode = "login" | "signup";
