@@ -1,6 +1,7 @@
 import { Routes, Route } from "react-router-dom";
 import Nav from "./components/Nav";
 
+import HomePage from "./pages/HomePage";
 import AuthPage from "./pages/AuthPage";
 import BuildDeckPage from "./pages/BuildDeckPage";
 import MyDeckPage from "./pages/MyDeckPage";
@@ -11,6 +12,7 @@ function App() {
       <Nav />
 
       <Routes>
+        <Route path="/" element={<HomePage />} />
         <Route path="/build" element={<BuildDeckPage />} />
         <Route path="/decks" element={<MyDeckPage />} />
         <Route path="/build/:deckId" element={<BuildDeckPage />} />
