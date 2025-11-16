@@ -1,6 +1,7 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import Logo from "../assets/decklab_logo.png";
+import { supabase } from "../lib/supaBaseClient";
 
 type NavItem = {
   label: string;
@@ -14,9 +15,44 @@ const centerNavItems: NavItem[] = [
 
 export const Nav = () => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  const navigate = useNavigate();
 
   const toggleMobileMenu = () => {
     setIsMobileOpen((prev) => !prev);
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!isMounted) return;
+      setIsAuthenticated(!!user);
+    };
+
+    loadUser();
+
+    const { data: subscription } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (!isMounted) return;
+        setIsAuthenticated(!!session?.user);
+      }
+    );
+
+    return () => {
+      isMounted = false;
+      subscription.subscription.unsubscribe();
+    };
+  }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setIsAuthenticated(false);
+    navigate("/login");
   };
 
   return (
@@ -25,6 +61,7 @@ export const Nav = () => {
         className="mx-auto flex w-full items-center justify-between px-4"
         aria-label="Main navigation"
       >
+        {/* Left: Logo */}
         <Link
           to="/"
           className="flex items-center gap-2"
@@ -49,14 +86,24 @@ export const Nav = () => {
           </ul>
         </div>
 
-        {/* Right: Login (desktop) */}
+        {/* Right: Login / Logout (desktop) */}
         <div className="hidden items-center md:flex">
-          <a
-            href="/login"
-            className="rounded-full border border-neutral-700 px-4 py-1.5 text-sm font-medium text-neutral-100 transition-colors hover:border-neutral-400 hover:text-white"
-          >
-            Login
-          </a>
+          {isAuthenticated ? (
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="rounded-full border border-neutral-700 px-4 py-1.5 text-sm font-medium text-neutral-100 transition-colors hover:border-red-500 hover:text-red-300"
+            >
+              Logout
+            </button>
+          ) : (
+            <Link
+              to="/login"
+              className="rounded-full border border-neutral-700 px-4 py-1.5 text-sm font-medium text-neutral-100 transition-colors hover:border-neutral-400 hover:text-white"
+            >
+              Login
+            </Link>
+          )}
         </div>
 
         {/* Mobile menu button */}
@@ -68,7 +115,6 @@ export const Nav = () => {
           onClick={toggleMobileMenu}
         >
           <span className="sr-only">Open main menu</span>
-          {/* Simple hamburger / close icon */}
           <div className="space-y-1">
             <span
               className={`block h-0.5 w-5 bg-current transition-transform ${
@@ -96,23 +142,37 @@ export const Nav = () => {
             <ul className="space-y-2 text-sm font-medium text-neutral-100">
               {centerNavItems.map((item) => (
                 <li key={item.href}>
-                  <a
-                    href={item.href}
+                  <Link
+                    to={item.href}
                     className="block rounded-md px-2 py-2 hover:bg-neutral-800"
                     onClick={() => setIsMobileOpen(false)}
                   >
                     {item.label}
-                  </a>
+                  </Link>
                 </li>
               ))}
+
               <li className="pt-2">
-                <a
-                  href="/login"
-                  className="block rounded-full border border-neutral-700 px-3 py-2 text-center hover:border-neutral-400 hover:bg-neutral-900"
-                  onClick={() => setIsMobileOpen(false)}
-                >
-                  Login
-                </a>
+                {isAuthenticated ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMobileOpen(false);
+                      handleLogout();
+                    }}
+                    className="block w-full rounded-full border border-red-700 px-3 py-2 text-center text-sm font-medium text-red-200 hover:border-red-500 hover:bg-neutral-900"
+                  >
+                    Logout
+                  </button>
+                ) : (
+                  <Link
+                    to="/login"
+                    className="block rounded-full border border-neutral-700 px-3 py-2 text-center hover:border-neutral-400 hover:bg-neutral-900"
+                    onClick={() => setIsMobileOpen(false)}
+                  >
+                    Login
+                  </Link>
+                )}
               </li>
             </ul>
           </div>
