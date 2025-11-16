@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { FC } from "react";
 import type { Card, DeckZone, YGOCardApi } from "../types/deck";
 import { CardDetailModal } from "../components/CardDetailModal";
+import { supabase } from "../lib/supabaseClient";
 
 const initialDeckName = "New Deck";
 
@@ -21,6 +22,9 @@ export default function BuildDeckPage() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
   const getCardBanMeta = (
     card: YGOCardApi
@@ -240,21 +244,91 @@ export default function BuildDeckPage() {
     return true;
   };
 
+  const handleSaveDeck = async () => {
+    setSaveError(null);
+    setSaveMessage(null);
+
+    // You can decide how strict you want this
+    if (main.length === 0 && extra.length === 0 && side.length === 0) {
+      setSaveError("You can't save an empty deck.");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      // 1) Get the current user
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        setSaveError("You need to be logged in to save decks.");
+        return;
+      }
+
+      // 2) Build the payload
+      const payload = {
+        user_id: user.id,
+        name: deckName.trim() || "Untitled Deck",
+        format: "tcg",
+        main,
+        extra,
+        side,
+      };
+
+      // 3) Insert into decks table
+      const { error: insertError } = await supabase
+        .from("decks")
+        .insert(payload);
+
+      if (insertError) {
+        console.error(insertError);
+        setSaveError("Failed to save deck. Please try again.");
+        return;
+      }
+
+      setSaveMessage("Deck saved successfully!");
+    } catch (err) {
+      console.error(err);
+      setSaveError("Something went wrong while saving.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <>
       <main className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-6 text-neutral-100 md:flex-row">
         {/* Left column: deck info + card search */}
         <section className="w-full md:w-1/3">
           <h1 className="mb-4 text-2xl font-semibold">Build a Deck</h1>
-
           <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-neutral-400">
             Deck Name
           </label>
-          <input
-            value={deckName}
-            onChange={(e) => setDeckName(e.target.value)}
-            className="mb-6 w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm outline-none focus:border-indigo-500"
-          />
+          <div className="mb-4 flex gap-2">
+            <input
+              value={deckName}
+              onChange={(e) => setDeckName(e.target.value)}
+              className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm outline-none focus:border-indigo-500"
+            />
+            <button
+              type="button"
+              onClick={handleSaveDeck}
+              disabled={isSaving}
+              className="whitespace-nowrap rounded-md bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-neutral-700"
+            >
+              {isSaving ? "Saving..." : "Save Deck"}
+            </button>
+          </div>
+
+          {saveError && (
+            <p className="mb-2 text-xs text-red-400">{saveError}</p>
+          )}
+
+          {saveMessage && (
+            <p className="mb-2 text-xs text-emerald-400">{saveMessage}</p>
+          )}
 
           <form
             onSubmit={(e) => {

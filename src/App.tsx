@@ -1,6 +1,7 @@
 import { Routes, Route } from "react-router-dom";
 import Nav from "./components/Nav";
 
+import AuthPage from "./pages/AuthPage";
 import BuildDeckPage from "./pages/BuildDeckPage";
 import MyDeckPage from "./pages/MyDeckPage";
 
@@ -12,6 +13,7 @@ function App() {
       <Routes>
         <Route path="/build" element={<BuildDeckPage />} />
         <Route path="/decks" element={<MyDeckPage />} />
+        <Route path="/login" element={<AuthPage />} />
       </Routes>
     </div>
   );
