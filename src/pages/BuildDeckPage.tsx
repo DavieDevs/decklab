@@ -341,7 +341,7 @@ export default function BuildDeckPage() {
       <main className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-6 text-neutral-100 md:flex-row">
         <AdSlot
           adClient="ca-pub-1068182347474888"
-          adSlot="1234567890"
+          adSlot="4649635562"
           className="mx-auto max-w-5xl"
         />
         {/* Left column: deck info + card search */}
