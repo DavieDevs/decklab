@@ -4,6 +4,7 @@ import type { Card, DeckZone, YGOCardApi } from "../types/deck";
 import { CardDetailModal } from "../components/CardDetailModal";
 import { supabase } from "../lib/supabaseClient";
 import { useParams } from "react-router-dom";
+import { AdSlot } from "../components/AdSlot";
 
 const initialDeckName = "New Deck";
 
@@ -338,6 +339,11 @@ export default function BuildDeckPage() {
   return (
     <>
       <main className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-6 text-neutral-100 md:flex-row">
+        <AdSlot
+          adClient="ca-pub-1068182347474888"
+          adSlot="1234567890"
+          className="mx-auto max-w-5xl"
+        />
         {/* Left column: deck info + card search */}
         <section className="w-full md:w-1/3">
           <h1 className="mb-4 text-2xl font-semibold">Build a Deck</h1>
